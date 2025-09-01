@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TOOL - SunWin Robot VIP</title>
+<style>
+:root{
+  --accent:#00e6ff;
+  --panel: rgba(6,10,20,0.72);
+  --bg1:#1a0b05;
+  --bg2:#100509;
+}
+html,body{height:100%;margin:0;font-family:Inter, "Segoe UI", Roboto, sans-serif;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#e6f7ff;overflow:hidden}
+#gameSelect{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:18px}
+#gameSelect h1{margin:0;font-size:28px;color:var(--accent);text-shadow:0 6px 30px rgba(0,0,0,0.6)}
+.options{width:100%;max-width:520px;display:flex;flex-direction:column;gap:14px}
+.option{display:flex;gap:14px;padding:14px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.35));border:1px solid rgba(255,255,255,0.04);cursor:pointer;align-items:center}
+.option img{width:56px;height:56px;border-radius:10px;object-fit:cover}
+.option .meta{display:flex;flex-direction:column}
+.option .title{font-weight:800;color:#fff}
+.option .sub{font-size:12px;color:#bcd}
+#gameWrapper{position:fixed;inset:0;display:none;z-index:10;background:#000}
+#gameFrame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+#robotOverlay{position:fixed;z-index:9999;left:22px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:12px;user-select:none;cursor:grab}
+#robotImg{width:120px;height:120px;border-radius:12px;overflow:hidden;background:linear-gradient(180deg,#0b2233,#002b3a);display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,255,255,0.04);box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+#robotImg img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+#robotBubble{background:var(--panel);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);min-width:180px}
+#robotBubble .line1{font-weight:800;color:var(--accent);margin-bottom:6px}
+#robotBubble .line2{font-size:13px;color:#d7f7ff;opacity:0.95}
+#controls{position:fixed;right:18px;top:18px;z-index:10001;display:flex;gap:8px}
+.ctrlBtn{background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.06);color:#fff;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:700}
+.ctrlBtn.warn{background:linear-gradient(90deg,#ff3b3b,#b32b2b)}
+#hud{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:10001;background:rgba(0,0,0,0.55);padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,0.04);display:flex;gap:12px;align-items:center}
+#hud .phien{font-weight:800;color:var(--accent);margin-right:8px}
+#hud .pred{font-weight:900;font-size:16px}
+#msg{position:fixed;left:50%;transform:translateX(-50%);top:12px;color:#ffd;font-weight:700;z-index:10002}
+@media (max-width:720px){
+  #robotImg{width:92px;height:92px}
+  #robotBubble{min-width:140px}
+}
+</style>
+</head>
+<body>
+<div id="msg"></div>
+<div id="gameSelect">
+<h1>🎮 CHỌN NỀN TẢNG</h1>
+<div class="options">
+  <div class="option" data-url="https://web.sunwin.us/">
+    <img src="https://i.postimg.cc/y6wrZ8xx/IMG-7874.jpg" alt="sun">
+    <div class="meta"><div class="title">SunWin</div><div class="sub">Mở SunWin</div></div>
+  </div>
+  <div class="option" data-url="https://play.789.club">
+    <img src="https://i.postimg.cc/ZKdxtPTK/IMG-7873.jpg" alt="b52">
+    <div class="meta"><div class="title">B52</div><div class="sub">Mở B52</div></div>
+  </div>
+  <div class="option" data-url="https://example.com">
+    <img src="https://i.postimg.cc/L6LQBFgT/IMG-7875.jpg" alt="hit">
+    <div class="meta"><div class="title">HitClub</div><div class="sub">Mở HitClub</div></div>
+  </div>
+</div>
+</div>
+
+<div id="gameWrapper">
+  <iframe id="gameFrame" src="about:blank" allow="autoplay; fullscreen"></iframe>
+</div>
+
+<div id="robotOverlay">
+<div id="robotImg"><img src="https://i.postimg.cc/rwkZQhxp/Robot.gif" alt="robot" /></div>
+<div id="robotBubble">
+  <div class="line1" id="line1">Chờ kết nối</div>
+  <div class="line2" id="line2">Đang lấy dữ liệu...</div>
+</div>
+</div>
+
+<div id="controls">
+<button class="ctrlBtn" id="toggleRobot">Ẩn Robot</button>
+<button class="ctrlBtn warn" id="backBtn">Quay lại</button>
+</div>
+
+<div id="hud">
+<div class="phien" id="phienDisplay">#------</div>
+<div class="pred" id="predDisplay">Dự đoán: --</div>
+</div>
+
+<script>
+const options = document.querySelectorAll('.option');
+const gameWrapper = document.getElementById('gameWrapper');
+const gameFrame = document.getElementById('gameFrame');
+const robotOverlay = document.getElementById('robotOverlay');
+const line1 = document.getElementById('line1');
+const line2 = document.getElementById('line2');
+const toggleRobot = document.getElementById('toggleRobot');
+const backBtn = document.getElementById('backBtn');
+const hud = document.getElementById('hud');
+const phienDisplay = document.getElementById('phienDisplay');
+const predDisplay = document.getElementById('predDisplay');
+
+let autoPredictInterval = null;
+let lastSession = null;
+let history = [];
+
+function showMsg(text,t=2000){
+  document.getElementById('msg').textContent=text;
+  setTimeout(()=>{if(document.getElementById('msg').textContent===text)document.getElementById('msg').textContent='';},t);
+}
+
+function smartPredict(apiPred){
+  if(apiPred) history.push(apiPred);
+  if(history.length>10) history.shift();
+  if(history.length===0) return apiPred;
+  const last = history[history.length-1];
+  let consecutive=1;
+  for(let i=history.length-2;i>=0;i--){
+    if(history[i]===last) consecutive++;
+    else break;
+  }
+  if(consecutive>=3) return last==='Tài'?'Xỉu':'Tài';
+  const countTai = history.filter(x=>x==='Tài').length;
+  const countXiu = history.filter(x=>x==='Xỉu').length;
+  return countTai>countXiu?'Tài':'Xỉu';
+}
+
+async function fetchPredictionAPI(){
+  try{
+    const res = await fetch('https://sun-predict-5ghi.onrender.com/api/taixiu/sunwin');
+    const data = await res.json();
+    if(data && data.Phien_hien_tai && data.du_doan){
+      const session = data.Phien_hien_tai;
+      const prediction = smartPredict(data.du_doan);
+      if(session!==lastSession){
+        lastSession=session;
+        phienDisplay.textContent='#'+session;
+        predDisplay.textContent='Dự đoán: '+prediction;
+        line1.textContent='🤖 Phiên #'+session;
+        line2.innerHTML='Dự đoán: <strong style="color:'+(prediction==='Tài'?'#00ff88':'#ffcc66')+'">'+prediction+'</strong>';
+        showMsg('Dự đoán cập nhật');
+      }
+    } else {
+      line1.textContent='⚠️ API lỗi';
+      line2.textContent='Không nhận dữ liệu';
+    }
+  }catch(e){
+    line1.textContent='⚠️ Lỗi kết nối API';
+    line2.textContent='Kiểm tra mạng hoặc API';
+    console.error(e);
+  }
+}
+
+function startAutoPredict(){
+  if(autoPredictInterval) clearInterval(autoPredictInterval);
+  fetchPredictionAPI();
+  autoPredictInterval=setInterval(fetchPredictionAPI,2000);
+}
+
+function stopAutoPredict(){
+  if(autoPredictInterval){clearInterval(autoPredictInterval);autoPredictInterval=null;showMsg('Dừng dự đoán');}
+}
+
+options.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const url=btn.dataset.url;
+    gameWrapper.style.display='block';
+    gameFrame.src=url;
+    robotOverlay.style.display='flex';
+    hud.style.display='flex';
+    backBtn.style.display='flex';
+    startAutoPredict();
+  });
+});
+
+toggleRobot.addEventListener('click',()=>{
+  robotOverlay.style.display=robotOverlay.style.display==='flex'?'none':'flex';
+  toggleRobot.textContent=robotOverlay.style.display==='flex'?'Ẩn Robot':'Hiện Robot';
+});
+
+backBtn.addEventListener('click',()=>{
+  stopAutoPredict();
+  gameWrapper.style.display='none';
+  robotOverlay.style.display='none';
+  hud.style.display='none';
+});
+
+(function(){
+  const el = robotOverlay;
+  let dragging=false,startX=0,startY=0,origX=0,origY=0;
+  el.addEventListener('pointerdown',ev=>{
+    dragging=true;
+    startX=ev.clientX; startY=ev.clientY;
+    origX=el.offsetLeft; origY=el.offsetTop;
+    el.setPointerCapture(ev.pointerId);
+  });
+  document.addEventListener('pointermove',ev=>{
+    if(!dragging) return;
+    let nx=origX+(ev.clientX-startX);
+    let ny=origY+(ev.clientY-startY);
+    nx=Math.max(6,Math.min(nx,window.innerWidth-el.offsetWidth-6));
+    ny=Math.max(6,Math.min(ny,window.innerHeight-el.offsetHeight-6));
+    el.style.left=nx+'px';
+    el.style.top=ny+'px';
+  });
+  document.addEventListener('pointerup',ev=>{dragging=false;});
+})();
+</script>
+</body>
+</html>
